@@ -1,73 +1,63 @@
+﻿// main.cpp
 #include <iostream>
-#include<time.h>
-#include"Eigen/Dense"
-#include"Layer.h"
-#include"Model.h"
+#include "Eigen/Dense"
+#include "Convolution.h"
+#include"VisionTransformer.h"
 
-class Num : public Dataset 
-{
-public:
-    std::vector<std::pair<Eigen::VectorXd, Eigen::VectorXd>> datas;
+#include <random>
 
-    Num() 
-    {           
-        for (int i = 0; i < 50; i++) 
-        {
-            Eigen::VectorXd input(21);
-            input.setZero();
-            Eigen::VectorXd output(1);
-            output(0) = i%3 == 0;
-            input(i%10) = 1;
-            input(10 + i / 10) = 1;
-            input(20) = i % 10 + i / 10;
-            datas.push_back({input, output});
-        }
+// Cross‐entropy loss for logits -> one‐hot target
+float cross_entropy_loss(const Eigen::ArrayXf& logits, int target_label) {
+    // apply softmax
+    Eigen::ArrayXf exps = (logits - logits.maxCoeff()).exp();
+    Eigen::ArrayXf probs = exps / exps.sum();
+    // loss = -log p_target
+    return -std::log(std::max(1e-7f, probs(target_label)));
+}
+
+// Gradient of cross‐entropy w.r.t. logits
+Eigen::ArrayXf grad_cross_entropy(const Eigen::ArrayXf& logits, int target_label) {
+    Eigen::ArrayXf exps = (logits - logits.maxCoeff()).exp();
+    Eigen::ArrayXf probs = exps / exps.sum();
+    probs(target_label) -= 1.0f;  // dL/dz = p - y_onehot
+    return probs;
+}
+
+int main() {
+    // --- Hyperparameters ---
+    const int IMG_H = 32, IMG_W = 32, IN_CH = 3;
+    const int PATCH = 4, DIM = 128, DEPTH = 6, NUM_CLASSES = 10;
+    const float LR = 0.01f;
+
+    // 1) Instantiate Vision Transformer
+    VisionTransformer vit(IMG_H, IMG_W, IN_CH, PATCH, DIM, DEPTH, NUM_CLASSES);
+
+    // 2) Create one random image and random label
+    std::mt19937 rng(123);
+    std::uniform_real_distribution<float> udist(0.0f, 1.0f);
+    Eigen::ArrayXf img(IMG_H * IMG_W * IN_CH);
+    for (int i = 0; i < img.size(); ++i) img[i] = udist(rng);
+
+    std::uniform_int_distribution<int> ldist(0, NUM_CLASSES - 1);
+    int label = ldist(rng);
+    std::cout << "Target label: " << label << std::endl;
+
+    for(int i = 0; i< 100; i++)
+    {
+        // 3) Forward pass
+        Eigen::ArrayXf logits = vit.forward(img);
+
+        // 4) Compute loss
+        float loss = cross_entropy_loss(logits, label);
+        std::cout << "Initial loss: " << loss << std::endl;
+
+        // 5) Backward pass
+        Eigen::ArrayXf grad_logits = grad_cross_entropy(logits, label);
+        Eigen::ArrayXf grad_img = vit.backward(grad_logits);
+        Eigen::ArrayXf logits2 = vit.forward(img);
+        float loss2 = cross_entropy_loss(logits2, label);
+        std::cout << "Loss after one update: " << loss2 << std::endl;
     }
 
-public:
-    std::vector<std::pair<Eigen::VectorXd, Eigen::VectorXd>>& getAll()
-    {
-        return this->datas;
-    }
-};
-
-
-int main()
-{
-    time_t m_time = time(nullptr);
-    tm t;
-    srand(localtime_s(&t, &m_time));
-    Activation*test = new Activation();
-    Layer testLayer(21,5,test);
-    Layer testLayer1(5, 5,test);
-    Layer testLayer2(5, 2,test);
-    Layer testLayer3(2, 1, test);
-    Model model = Model().layer(testLayer).layer(testLayer1).layer(testLayer2).layer(testLayer3);
-
-    
-    Num testDataset;
-    float cost = 1;
-    std::cout << "Training\n";
-    while (cost > 0.1) 
-    {
-        cost = model.batchingTraining(testDataset,20);
-        std::cout<< "cost: " << cost << "\n";
-    };
-
-
-    std::cout << "Testing" << "\n";
-    int testCount = 100;
-    for (int i = 0; i < testCount; i++) 
-    {
-        Eigen::VectorXd input(21);
-        input.setZero();
-        int random = rand() % 100;
-        input(random%10) = 1;
-        input(10 + random / 10) = 1;
-        input(20) = random % 10 + random / 10;
-        Eigen::VectorXd output =  model.getOutput(input);
-        int result = output(0) > 0.5f ? 1 : 0;
-        std::cout << random << " " << result << "\n";
-    }
-
+    return 0;
 }

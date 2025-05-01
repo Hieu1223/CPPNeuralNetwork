@@ -130,16 +130,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Activation.cpp" />
+    <ClCompile Include="Convolution.cpp" />
     <ClCompile Include="Dataset.cpp" />
-    <ClCompile Include="Layer.cpp" />
+    <ClCompile Include="Linear.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="NeuralNetwork.cpp" />
+    <ClCompile Include="VisionTransformer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
+    <ClInclude Include="Convolution.h" />
     <ClInclude Include="Dataset.h" />
     <ClInclude Include="Layer.h" />
+    <ClInclude Include="Linear.h" />
     <ClInclude Include="Model.h" />
+    <ClInclude Include="VisionTransformer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
